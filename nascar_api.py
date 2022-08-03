@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import pandas as pd
 import requests
 import sqlite3
@@ -135,14 +134,36 @@ def get_race_results(race_url):
     race_results_len = len(race_data["weekend_race"][0]["results"])
 
     race_results_dict = {
+        "driver_name": [race_data["weekend_race"][0]["results"][result]["driver_fullname"] for result in range(race_results_len)],
         "finishing_position": [race_data["weekend_race"][0]["results"][result]["finishing_position"] for result in range(race_results_len)],
-        "driver_name": [race_data["weekend_race"][0]["results"][result]["driver_fullname"] for result in range(race_results_len)]}
+        "race_name": [race_data["weekend_race"][0]["race_name"] for repeat in range(race_results_len)]
+        }
 
-    race_results_df = pd.DataFrame(data=race_results_dict).set_index("finishing_position")
+    race_results_df = pd.DataFrame(data=race_results_dict)
     return race_results_df
 
 
-race = get_race(5145)
-print(race[0])
-print("---------------------------------")
-print(race[1])
+
+conn = sqlite3.connect('nascar.db')
+c = conn.cursor()
+c.execute("PRAGMA foreign_keys = 1")
+
+c.execute('CREATE TABLE IF NOT EXISTS races (race_date text, track_name text, race_name text primary key)')
+c.execute('CREATE TABLE IF NOT EXISTS results (driver_name text, finishing_position int, race_name text, FOREIGN KEY(race_name) REFERENCES races(race_name))')
+
+conn.commit()
+
+for i in range(5143, 5170):
+    race = get_race(i)
+    race[0].to_sql("races", conn, if_exists="append", index=False)
+    race[1].to_sql("results", conn, if_exists="append", index=False)
+
+    conn.commit()
+
+c.execute("""
+SELECT * FROM results
+""")
+
+for row in c.fetchall():
+    print(row)
+
