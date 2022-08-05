@@ -142,28 +142,3 @@ def get_race_results(race_url):
     race_results_df = pd.DataFrame(data=race_results_dict)
     return race_results_df
 
-
-
-conn = sqlite3.connect('nascar.db')
-c = conn.cursor()
-c.execute("PRAGMA foreign_keys = 1")
-
-c.execute('CREATE TABLE IF NOT EXISTS races (race_date text, track_name text, race_name text primary key)')
-c.execute('CREATE TABLE IF NOT EXISTS results (driver_name text, finishing_position int, race_name text, FOREIGN KEY(race_name) REFERENCES races(race_name))')
-
-conn.commit()
-
-for i in range(5143, 5170):
-    race = get_race(i)
-    race[0].to_sql("races", conn, if_exists="append", index=False)
-    race[1].to_sql("results", conn, if_exists="append", index=False)
-
-    conn.commit()
-
-c.execute("""
-SELECT * FROM results
-""")
-
-for row in c.fetchall():
-    print(row)
-
