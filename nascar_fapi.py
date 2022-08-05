@@ -1,3 +1,4 @@
+from lib2to3.pgen2 import driver
 from fastapi import FastAPI
 import requests
 import re
@@ -66,15 +67,11 @@ def get_manufacture_by_name(pos: int):
 @app.get("/get-race/{race_id}")
 def get_race(race_id: int):
     
-    race_results_url = f"https://cf.nascar.com/cacher/2022/1/{race_id}/weekend-feed.json"
+    race_url = f"https://cf.nascar.com/cacher/2022/1/{race_id}/weekend-feed.json"
     
-    race_results = get_race_results(race_results_url)
-    
-    race_json = requests.request("GET", race_results_url)
+    race_json = requests.request("GET", race_url)
 
     race_data = race_json.json()
-
-    # race_results_len = len(race_data["weekend_race"][0]["results"])
 
     race_date = race_data["weekend_race"][0]["race_date"]
     race_date = re.sub('T[0-9]*\:[0-9]*\:[0-9]*', '', race_date)
@@ -100,7 +97,7 @@ def get_race_results(race_id: int):
     race_results_len = len(race_data["weekend_race"][0]["results"])
 
     race_results_dict = {
-        "results": [{race_data["weekend_race"][0]["results"][result]["driver_fullname"]: race_data["weekend_race"][0]["results"][result]["finishing_position"] for result in range(race_results_len)}],
+        "results": {race_data["weekend_race"][0]["results"][result]["driver_fullname"]: race_data["weekend_race"][0]["results"][result]["finishing_position"] for result in range(race_results_len)},
         "race_name": race_data["weekend_race"][0]["race_name"],
         "track_name": race_data["weekend_race"][0]["track_name"]
         }
@@ -117,3 +114,10 @@ def get_driver_standing_position(driver_name: str):
     for driver in ds_data:
         if driver["driver_name"] == driver_name:
             return driver
+
+@app.get("/{driver_name}/{race_id}/result")
+def get_driver_race_result(driver_name: str, race_id: int):
+    
+    race_results = get_race_results(race_id)
+
+    return f"Result for {driver_name} is P{race_results['results'][driver_name]}"
