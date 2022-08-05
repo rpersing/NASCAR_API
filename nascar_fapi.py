@@ -6,7 +6,8 @@ from datetime import datetime
 
 app = FastAPI()
 
-# first id -> 5143
+la_clash_id = 5143
+daytona_500_id = 5146
 # last reg. seas. id -> 5173
 curr_race_id = 5169 # current id -> 5169
 
@@ -43,17 +44,17 @@ def get_manufacturer_data():
     return manu_data
 
 @app.get("/get-manufacturer-by-name/{manu_name}")
-def get_manufacture_by_name(manu_name: str):
+def get_manufacturer_by_name(manu_name: str):
     manus = get_manufacturer_data()
 
     for manu in manus:
-        if manu["manufacturer"] == manu_name:
+        if manu["manufacturer"].lower() == manu_name.lower():
             return manu
     else:
         return "Manufacturer does not exist."
 
 @app.get("/get-manufacturer-by-pos/{pos}")
-def get_manufacture_by_name(pos: int):
+def get_manufacturer_by_name(pos: int):
 
     if pos > 3: # check if the integer is valid. If it is over 3 it is not valid because there are only 3 manufacturers in NASCAR
         return "Invalid integer"
@@ -120,4 +121,27 @@ def get_driver_race_result(driver_name: str, race_id: int):
     
     race_results = get_race_results(race_id)
 
-    return f"Result for {driver_name} is P{race_results['results'][driver_name]}"
+    if driver_name not in race_results["results"].keys():
+        return "Driver has no result for given race id."
+    
+    driver_result = race_results["results"][driver_name]
+
+    return driver_result
+
+@app.get("/get-{driver_name}-avg-finish")
+def get_driver_avg_finish(driver_name: str):
+
+    result_total = 0
+    total_races = curr_race_id - daytona_500_id
+
+    for race_id in range(5143, curr_race_id + 1):
+        result = get_driver_race_result(driver_name, race_id)
+        if isinstance(result, str):
+            continue
+        result_total += result
+    
+    avg_finish = result_total / total_races
+
+    avg_finish = f"{avg_finish:.1f}"
+
+    return float(avg_finish)
