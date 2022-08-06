@@ -1,4 +1,3 @@
-from lib2to3.pgen2 import driver
 from fastapi import FastAPI
 import requests
 import re
@@ -16,8 +15,31 @@ owners_points_url = "https://cf.nascar.com/cacher/2022/1/final/1-owners-points.j
 drivers_points_url = "https://cf.nascar.com/cacher/2022/1/final/1-drivers-points.json" # url to pull drivers and driver points
 race_results_url = f"https://cf.nascar.com/cacher/2022/1/{curr_race_id}/weekend-feed.json" # url to pull race results
 
+@app.get("/")
+@app.get("/home")
+@app.get("/help")
+def help():
+    """
+    Help page. Provides all routes and associated functionality.
+    """
+    return {
+        "/get-drivers": "Get all drivers",
+        "/get-manufacturer-data": "Get all manufacturer",
+        "/get-manufacturer-by-name/{manu_name}": "Get manufacturer by name, ex: [Chevrolet]]",
+        "/get-manufacturer-by-pos/{pos}": "Get manufacturer by position, ex: [1]",
+        "/get-race/{race_id}": "Get race by id, ex: [5155]",
+        "/get-race-id/{race_name}": "Get race id with race_name, ex: [Daytona 500]",
+        "/get-race-results/{race_id}": "Get race results with race id, ex: [5155]",
+        "/get-{driver_name}-standing-position": "Get driver standing position with name, ex: [Chase Elliott]",
+        "/{driver_name}/{race_id}/result": "Get driver result with name and race id, ex: [Chase Elliott, 5155]",
+        "/get-{driver_name}-avg-finish": "Get driver average finish with name, ex: [Chase Elliott]",
+    }
+
 @app.get("/get-drivers")
 def get_drivers():
+    """
+    Get all drivers
+    """
     driver_json = requests.request("GET", drivers_points_url)
     driver_data = driver_json.json()
 
@@ -25,6 +47,9 @@ def get_drivers():
 
 @app.get("/get-manufacturer-data")
 def get_manufacturer_data():
+    """
+    Get all manufacturer data.
+    """
 
     headers = {
         "authority": "cf.nascar.com",
@@ -45,6 +70,10 @@ def get_manufacturer_data():
 
 @app.get("/get-manufacturer-by-name/{manu_name}")
 def get_manufacturer_by_name(manu_name: str):
+    """
+    Get manufacturer data based on manufacturer name.
+    """
+
     manus = get_manufacturer_data()
 
     for manu in manus:
@@ -55,6 +84,9 @@ def get_manufacturer_by_name(manu_name: str):
 
 @app.get("/get-manufacturer-by-pos/{pos}")
 def get_manufacturer_by_name(pos: int):
+    """
+    Get manufacturer data by standings position.
+    """
 
     if pos > 3: # check if the integer is valid. If it is over 3 it is not valid because there are only 3 manufacturers in NASCAR
         return "Invalid integer"
@@ -67,6 +99,9 @@ def get_manufacturer_by_name(pos: int):
 
 @app.get("/get-race/{race_id}")
 def get_race(race_id: int):
+    """
+    Get race data from race_id.
+    """
     
     race_url = f"https://cf.nascar.com/cacher/2022/1/{race_id}/weekend-feed.json"
     
@@ -86,8 +121,44 @@ def get_race(race_id: int):
 
     return race_dict
 
+@app.get("/get-race-id-by-race-name/{race_name}")
+def get_race_id_by_race_name(race_name: str):
+    """
+    Get race id from race name.
+    """
+    
+    for race_id in range(la_clash_id, curr_race_id + 1):
+        race_data = get_race(race_id)
+        retrieved_name = race_data["race_name"].lower()
+        if race_name.lower() == retrieved_name:
+            return race_id
+    
+    return "Race not found."
+
+@app.get("/get-race-id-by-track-name/{track_name}")
+def get_race_id_by_track_name(track_name: str):
+    """
+    Get race id from track name.
+    """
+
+    all_races = []
+
+    for race_id in range(la_clash_id, curr_race_id + 1):
+        race_data = get_race(race_id)
+        retrieved_name = race_data["track_name"].lower()
+        if track_name.lower() == retrieved_name:
+            all_races.append(race_id)
+    
+    if len(all_races) > 0:
+        return all_races
+    
+    return "No race(s) found."
+            
 @app.get("/get-race-results/{race_id}")
 def get_race_results(race_id: int):
+    """
+    Get race results from given race id.
+    """
 
     race_results_url = f"https://cf.nascar.com/cacher/2022/1/{race_id}/weekend-feed.json"
 
@@ -107,6 +178,9 @@ def get_race_results(race_id: int):
 
 @app.get("/get-{driver_name}-standing-position")
 def get_driver_standing_position(driver_name: str):
+    """
+    Get driver's position in the standings by name.
+    """
 
     ds_json = requests.request("GET", drivers_points_url)
 
@@ -118,6 +192,9 @@ def get_driver_standing_position(driver_name: str):
 
 @app.get("/{driver_name}/{race_id}/result")
 def get_driver_race_result(driver_name: str, race_id: int):
+    """
+    Get driver results from given driver name and race id.
+    """
     
     race_results = get_race_results(race_id)
 
@@ -130,18 +207,23 @@ def get_driver_race_result(driver_name: str, race_id: int):
 
 @app.get("/get-{driver_name}-avg-finish")
 def get_driver_avg_finish(driver_name: str):
+    """
+    Get average finish for given driver.
+    """
 
-    result_total = 0
-    total_races = curr_race_id - daytona_500_id
+    result_list = []
+    uncounted_races = [la_clash_id, daytona_500_id - 2, daytona_500_id - 1, 5159, 5160]
 
-    for race_id in range(5143, curr_race_id + 1):
+    for race_id in range(la_clash_id, curr_race_id + 1):
         result = get_driver_race_result(driver_name, race_id)
-        if isinstance(result, str):
+        if race_id in uncounted_races or isinstance(result, str):
             continue
-        result_total += result
+        else:
+            result_list.append(result)
     
-    avg_finish = result_total / total_races
-
-    avg_finish = f"{avg_finish:.1f}"
+    
+    avg_finish = sum(result_list) / len(result_list)
+    avg_finish = f"{avg_finish:.3f}"
 
     return float(avg_finish)
+
