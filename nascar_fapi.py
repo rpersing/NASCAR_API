@@ -1,3 +1,4 @@
+from lib2to3.pgen2 import driver
 from fastapi import FastAPI
 import requests
 import re
@@ -9,11 +10,14 @@ la_clash_id = 5143
 daytona_500_id = 5146
 # last reg. seas. id -> 5173
 curr_race_id = 5169 # current id -> 5169
+amt_of_driver_stat_pages = 3
 
 manu_points_url = "https://cf.nascar.com/cacher/2022/1/final/1-manufacturer-points.json" # url to pull manufacturer points
 owners_points_url = "https://cf.nascar.com/cacher/2022/1/final/1-owners-points.json" # url to pull owners points
 drivers_points_url = "https://cf.nascar.com/cacher/2022/1/final/1-drivers-points.json" # url to pull drivers and driver points
 race_results_url = f"https://cf.nascar.com/cacher/2022/1/{curr_race_id}/weekend-feed.json" # url to pull race results
+advanced_driver_stats = f"https://cf.nascar.com/cacher/2022/{amt_of_driver_stat_pages}/deep-driver-stats.json" # url to pull advanced driver stats
+live_feed = "https://cf.nascar.com/cacher/live/live-feed.json"
 
 @app.get("/")
 @app.get("/home")
@@ -211,19 +215,19 @@ def get_driver_avg_finish(driver_name: str):
     Get average finish for given driver.
     """
 
-    result_list = []
-    uncounted_races = [la_clash_id, daytona_500_id - 2, daytona_500_id - 1, 5159, 5160]
+    for page in range(amt_of_driver_stat_pages):
+        advanced_driver_stats = f"https://cf.nascar.com/cacher/2022/{page + 1}/deep-driver-stats.json"
+        stats_json = requests.request("GET", advanced_driver_stats)
+        stats_data = stats_json.json()
+        for driver in range(len(stats_data)):
+            if stats_data[driver]["driver_name"] == driver_name:
+                return stats_data[driver]["average_finish_position"]
 
-    for race_id in range(la_clash_id, curr_race_id + 1):
-        result = get_driver_race_result(driver_name, race_id)
-        if race_id in uncounted_races or isinstance(result, str):
-            continue
-        else:
-            result_list.append(result)
-    
-    
-    avg_finish = sum(result_list) / len(result_list)
-    avg_finish = f"{avg_finish:.3f}"
+@app.get("/get-live-results")
+def get_live_results():
+    live_json = requests.request("GET", live_feed)
 
-    return float(avg_finish)
+    live_data = live_json.json()
+
+    return live_data
 
