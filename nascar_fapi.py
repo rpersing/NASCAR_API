@@ -10,13 +10,12 @@ la_clash_id = 5143
 daytona_500_id = 5146
 # last reg. seas. id -> 5173
 curr_race_id = 5169 # current id -> 5169
-amt_of_driver_stat_pages = 3
 
 manu_points_url = "https://cf.nascar.com/cacher/2022/1/final/1-manufacturer-points.json" # url to pull manufacturer points
 owners_points_url = "https://cf.nascar.com/cacher/2022/1/final/1-owners-points.json" # url to pull owners points
 drivers_points_url = "https://cf.nascar.com/cacher/2022/1/final/1-drivers-points.json" # url to pull drivers and driver points
 race_results_url = f"https://cf.nascar.com/cacher/2022/1/{curr_race_id}/weekend-feed.json" # url to pull race results
-advanced_driver_stats = f"https://cf.nascar.com/cacher/2022/{amt_of_driver_stat_pages}/deep-driver-stats.json" # url to pull advanced driver stats
+advanced_driver_stats = f"https://cf.nascar.com/cacher/2022/1/deep-driver-stats.json" # url to pull advanced driver stats
 live_feed = "https://cf.nascar.com/cacher/live/live-feed.json"
 
 @app.get("/")
@@ -215,13 +214,11 @@ def get_driver_avg_finish(driver_name: str):
     Get average finish for given driver.
     """
 
-    for page in range(amt_of_driver_stat_pages):
-        advanced_driver_stats = f"https://cf.nascar.com/cacher/2022/{page + 1}/deep-driver-stats.json"
-        stats_json = requests.request("GET", advanced_driver_stats)
-        stats_data = stats_json.json()
-        for driver in range(len(stats_data)):
-            if stats_data[driver]["driver_name"] == driver_name:
-                return stats_data[driver]["average_finish_position"]
+    stats_json = requests.request("GET", advanced_driver_stats)
+    stats_data = stats_json.json()
+    for driver in range(len(stats_data)):
+        if stats_data[driver]["driver_name"] == driver_name:
+            return stats_data[driver]["average_finish_position"]
 
 @app.get("/get-live-results")
 def get_live_results():
