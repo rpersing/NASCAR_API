@@ -1,4 +1,3 @@
-from lib2to3.pgen2 import driver
 from fastapi import FastAPI
 import requests
 import re
