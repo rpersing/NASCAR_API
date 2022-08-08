@@ -1,3 +1,4 @@
+from lib2to3.pgen2 import driver
 from fastapi import FastAPI
 import requests
 import re
@@ -27,6 +28,7 @@ async def help():
     """
     return {
         "/get-drivers": "Get all drivers",
+        "/get-drivers-names": "Get all drivers names, returns list of driver names",
         "/get-manufacturer-data": "Get all manufacturer",
         "/get-manufacturer-by-name/{manu_name}": "Get manufacturer by name, ex: [Chevrolet]]",
         "/get-manufacturer-by-pos/{pos}": "Get manufacturer by position, ex: [1]",
@@ -41,7 +43,7 @@ async def help():
     }
 
 @app.get("/get-drivers")
-async def get_drivers():
+def get_drivers():
     """
     Get all drivers
     """
@@ -49,6 +51,22 @@ async def get_drivers():
     driver_data = driver_json.json()
 
     return driver_data
+
+@app.get("/get-drivers-names")
+def get_drivers_names() -> list:
+    """
+    Gets and returns list of driver's names.
+    """
+
+    driver_names = []
+    
+    drivers = get_drivers()
+
+    for driver in drivers:
+        driver_name = driver["driver_name"]
+        driver_names.append(driver_name)
+    
+    return driver_names
 
 @app.get("/get-manufacturer-data")
 def get_manufacturer_data():
@@ -103,10 +121,13 @@ async def get_manufacturer_by_name(pos: int):
             return manu
 
 @app.get("/get-race/{race_id}")
-async def get_race(race_id: int):
+def get_race(race_id: int):
     """
     Get race data from race_id.
     """
+
+    if race_id < la_clash_id:
+        return "Invalid race id."
     
     race_url = f"https://cf.nascar.com/cacher/2022/1/{race_id}/weekend-feed.json"
     
@@ -127,16 +148,19 @@ async def get_race(race_id: int):
     return race_dict
 
 @app.get("/get-race-id-by-race-name/{race_name}")
-def get_race_id_by_race_name(race_name: str):
+async def get_race_id_by_race_name(race_name: str):
     """
     Get race id from race name.
     """
-    
+    possible_races = []
+
     for race_id in range(la_clash_id, curr_race_id + 1):
         race_data = get_race(race_id)
         retrieved_name = race_data["race_name"].lower()
         if race_name.lower() == retrieved_name:
             return race_id
+        elif race_name.lower() in retrieved_name:
+            return f"Did you mean {race_data['race_name']}?"
     
     return "Race not found."
 
@@ -153,6 +177,8 @@ async def get_race_id_by_track_name(track_name: str):
         retrieved_name = race_data["track_name"].lower()
         if track_name.lower() == retrieved_name:
             all_races.append(race_id)
+        elif track_name.lower() in retrieved_name:
+            return f"Did you mean {race_data['track_name']}?"
     
     if len(all_races) > 0:
         return all_races
@@ -160,10 +186,13 @@ async def get_race_id_by_track_name(track_name: str):
     return "No race(s) found."
             
 @app.get("/get-race-results/{race_id}")
-async def get_race_results(race_id: int):
+def get_race_results(race_id: int):
     """
     Get race results from given race id.
     """
+
+    if race_id < 5143:
+        return "Invalid race id."
 
     race_results_url = f"https://cf.nascar.com/cacher/2022/1/{race_id}/weekend-feed.json"
 
@@ -193,14 +222,17 @@ async def get_driver_standing_position(driver_name: str):
 
     for driver in ds_data:
         if driver["driver_name"] == driver_name:
-            return driver
+            return {"regular_season": driver["position"], "playoff": driver["playoff_rank"]}
 
 @app.get("/{driver_name}/{race_id}/result")
 async def get_driver_race_result(driver_name: str, race_id: int):
     """
     Get driver results from given driver name and race id.
     """
-    
+        
+    if race_id < 5143:
+        return "Invalid race id."
+        
     race_results = get_race_results(race_id)
 
     if driver_name not in race_results["results"].keys():
@@ -208,7 +240,7 @@ async def get_driver_race_result(driver_name: str, race_id: int):
     
     driver_result = race_results["results"][driver_name]
 
-    return driver_result
+    return {"result": driver_result}
 
 @app.get("/get-{driver_name}-avg-start")
 async def get_driver_avg_start(driver_name: str):
@@ -218,6 +250,17 @@ async def get_driver_avg_start(driver_name: str):
 
     starting_positions = []
     denied_races = [5159, 5160]
+
+    driver_names = get_drivers_names()
+
+    for driver in driver_names:
+        if driver_name.lower() == driver.lower():
+            break
+        elif driver_name.lower() in driver.lower():
+            return f"Did you mean {driver}?"
+
+    if driver_name not in driver_names:
+        return "Driver name invalid."
 
     for race_id in range(daytona_500_id, curr_race_id + 1):
 
@@ -230,13 +273,13 @@ async def get_driver_avg_start(driver_name: str):
 
         race_data = race_json.json()
 
-        race_results_len = len(race_data["weekend_race"][0]["results"])
+        race_results = len(race_data["weekend_race"][0]["results"])
 
-        for result in range(race_results_len):
+        for result in range(race_results):
             if race_data["weekend_race"][0]["results"][result]["driver_fullname"] == driver_name:
                 start_pos = race_data["weekend_race"][0]["results"][result]["starting_position"]
                 starting_positions.append(start_pos)
-    
+
     avg_start = sum(starting_positions) / len(starting_positions)
     avg_start = trunc(avg_start * 10) / 10
     return float(avg_start)
@@ -246,6 +289,14 @@ async def get_driver_avg_finish(driver_name: str):
     """
     Get average finish for given driver.
     """
+
+    driver_names = get_drivers_names()
+
+    for driver in driver_names:
+        if driver_name.lower() == driver.lower():
+            break
+        elif driver_name.lower() in driver.lower():
+            return f"Did you mean {driver}?"
 
     stats_json = requests.request("GET", advanced_driver_stats)
     stats_data = stats_json.json()
