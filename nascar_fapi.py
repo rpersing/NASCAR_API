@@ -2,13 +2,14 @@ from fastapi import FastAPI
 import requests
 import re
 from datetime import datetime
+from math import trunc
 
 app = FastAPI()
 
 la_clash_id = 5143
 daytona_500_id = 5146
 # last reg. seas. id -> 5173
-curr_race_id = 5169 # current id -> 5169
+curr_race_id = 5170 # current id -> 5169
 
 manu_points_url = "https://cf.nascar.com/cacher/2022/1/final/1-manufacturer-points.json" # url to pull manufacturer points
 owners_points_url = "https://cf.nascar.com/cacher/2022/1/final/1-owners-points.json" # url to pull owners points
@@ -206,6 +207,36 @@ def get_driver_race_result(driver_name: str, race_id: int):
     driver_result = race_results["results"][driver_name]
 
     return driver_result
+
+@app.get("/get-{driver_name}-avg-start")
+def get_driver_avg_start(driver_name: str):
+
+    starting_positions = []
+    denied_races = [5159, 5160]
+
+    for race_id in range(daytona_500_id, curr_race_id + 1):
+
+        if race_id in denied_races:
+            continue
+
+        race_results_url = f"https://cf.nascar.com/cacher/2022/1/{race_id}/weekend-feed.json"
+
+        race_json = requests.request("GET", race_results_url)
+
+        race_data = race_json.json()
+
+        race_results_len = len(race_data["weekend_race"][0]["results"])
+
+        for result in range(race_results_len):
+            if race_data["weekend_race"][0]["results"][result]["driver_fullname"] == driver_name:
+                start_pos = race_data["weekend_race"][0]["results"][result]["starting_position"]
+                starting_positions.append(start_pos)
+    
+    avg_start = sum(starting_positions) / len(starting_positions)
+    avg_start = trunc(avg_start * 10) / 10
+    return float(avg_start)
+
+
 
 @app.get("/get-{driver_name}-avg-finish")
 def get_driver_avg_finish(driver_name: str):
