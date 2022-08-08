@@ -21,7 +21,7 @@ live_feed = "https://cf.nascar.com/cacher/live/live-feed.json"
 @app.get("/")
 @app.get("/home")
 @app.get("/help")
-def help():
+async def help():
     """
     Help page. Provides all routes and associated functionality.
     """
@@ -34,12 +34,14 @@ def help():
         "/get-race-id/{race_name}": "Get race id with race_name, ex: [Daytona 500]",
         "/get-race-results/{race_id}": "Get race results with race id, ex: [5155]",
         "/get-{driver_name}-standing-position": "Get driver standing position with name, ex: [Chase Elliott]",
-        "/{driver_name}/{race_id}/result": "Get driver result with name and race id, ex: [Chase Elliott, 5155]",
-        "/get-{driver_name}-avg-finish": "Get driver average finish with name, ex: [Chase Elliott]",
+        "/{driver_name}/{race_id}/result": "Get driver result with name and race id, ex: [Kyle Busch, 5155]",
+        "/get-{driver_name}-avg-start": "Get driver average start with name, ex: [William Byron]",
+        "/get-{driver_name}-avg-finish": "Get driver average finish with name, ex: [Ross Chastain]",
+        "/get-live-results": "Get live data on the current race."
     }
 
 @app.get("/get-drivers")
-def get_drivers():
+async def get_drivers():
     """
     Get all drivers
     """
@@ -72,7 +74,7 @@ def get_manufacturer_data():
     return manu_data
 
 @app.get("/get-manufacturer-by-name/{manu_name}")
-def get_manufacturer_by_name(manu_name: str):
+async def get_manufacturer_by_name(manu_name: str):
     """
     Get manufacturer data based on manufacturer name.
     """
@@ -86,12 +88,12 @@ def get_manufacturer_by_name(manu_name: str):
         return "Manufacturer does not exist."
 
 @app.get("/get-manufacturer-by-pos/{pos}")
-def get_manufacturer_by_name(pos: int):
+async def get_manufacturer_by_name(pos: int):
     """
     Get manufacturer data by standings position.
     """
 
-    if pos > 3: # check if the integer is valid. If it is over 3 it is not valid because there are only 3 manufacturers in NASCAR
+    if pos > 3 or pos < 1: # check if the integer is valid. If it is over 3 it is not valid because there are only 3 manufacturers in NASCAR
         return "Invalid integer"
 
     manus = get_manufacturer_data()
@@ -101,7 +103,7 @@ def get_manufacturer_by_name(pos: int):
             return manu
 
 @app.get("/get-race/{race_id}")
-def get_race(race_id: int):
+async def get_race(race_id: int):
     """
     Get race data from race_id.
     """
@@ -139,7 +141,7 @@ def get_race_id_by_race_name(race_name: str):
     return "Race not found."
 
 @app.get("/get-race-id-by-track-name/{track_name}")
-def get_race_id_by_track_name(track_name: str):
+async def get_race_id_by_track_name(track_name: str):
     """
     Get race id from track name.
     """
@@ -158,7 +160,7 @@ def get_race_id_by_track_name(track_name: str):
     return "No race(s) found."
             
 @app.get("/get-race-results/{race_id}")
-def get_race_results(race_id: int):
+async def get_race_results(race_id: int):
     """
     Get race results from given race id.
     """
@@ -180,7 +182,7 @@ def get_race_results(race_id: int):
     return race_results_dict
 
 @app.get("/get-{driver_name}-standing-position")
-def get_driver_standing_position(driver_name: str):
+async def get_driver_standing_position(driver_name: str):
     """
     Get driver's position in the standings by name.
     """
@@ -194,7 +196,7 @@ def get_driver_standing_position(driver_name: str):
             return driver
 
 @app.get("/{driver_name}/{race_id}/result")
-def get_driver_race_result(driver_name: str, race_id: int):
+async def get_driver_race_result(driver_name: str, race_id: int):
     """
     Get driver results from given driver name and race id.
     """
@@ -209,7 +211,10 @@ def get_driver_race_result(driver_name: str, race_id: int):
     return driver_result
 
 @app.get("/get-{driver_name}-avg-start")
-def get_driver_avg_start(driver_name: str):
+async def get_driver_avg_start(driver_name: str):
+    """
+    Get average start for given driver.
+    """
 
     starting_positions = []
     denied_races = [5159, 5160]
@@ -236,10 +241,8 @@ def get_driver_avg_start(driver_name: str):
     avg_start = trunc(avg_start * 10) / 10
     return float(avg_start)
 
-
-
 @app.get("/get-{driver_name}-avg-finish")
-def get_driver_avg_finish(driver_name: str):
+async def get_driver_avg_finish(driver_name: str):
     """
     Get average finish for given driver.
     """
@@ -251,7 +254,11 @@ def get_driver_avg_finish(driver_name: str):
             return stats_data[driver]["average_finish_position"]
 
 @app.get("/get-live-results")
-def get_live_results():
+async def get_live_results():
+    """
+    Get live race data.
+    """
+
     live_json = requests.request("GET", live_feed)
 
     live_data = live_json.json()
