@@ -1,4 +1,3 @@
-from lib2to3.pgen2 import driver
 from fastapi import FastAPI
 import requests
 import re
@@ -33,7 +32,8 @@ async def help():
         "/get-manufacturer-by-name/{manu_name}": "Get manufacturer by name, ex: [Chevrolet]]",
         "/get-manufacturer-by-pos/{pos}": "Get manufacturer by position, ex: [1]",
         "/get-race/{race_id}": "Get race by id, ex: [5155]",
-        "/get-race-id/{race_name}": "Get race id with race_name, ex: [Daytona 500]",
+        "/get-race-id-by-race-name/{race_name}": "Get race id with race_name, ex: [Daytona 500]",
+        "/get-race-id-by-track-name/{track_name}": "Get race id with track name, ex: [Atlanta Motor Speedway]",
         "/get-race-results/{race_id}": "Get race results with race id, ex: [5155]",
         "/get-{driver_name}-standing-position": "Get driver standing position with name, ex: [Chase Elliott]",
         "/{driver_name}/{race_id}/result": "Get driver result with name and race id, ex: [Kyle Busch, 5155]",
