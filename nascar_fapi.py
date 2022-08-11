@@ -19,7 +19,6 @@ ADVANCED_DRIVER_STATS_URL = f"https://cf.nascar.com/cacher/2022/1/deep-driver-st
 LIVE_FEED_URL = "https://cf.nascar.com/cacher/live/live-feed.json" # url to pull live feed data
 
 @app.get("/")
-@app.get("/home")
 @app.get("/help")
 async def help():
     """
