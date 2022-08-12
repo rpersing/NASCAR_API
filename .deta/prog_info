@@ -1,1 +1,0 @@
-{"id":"9ab73199-fbcb-4b0e-8fe1-938c8edb2370","space":28106,"runtime":"python3.9","name":"NASCAR_FastAPI","path":"we7eox","project":"b02pwd1m","account":"144798365827","region":"us-east-1","deps":["fastapi==0.52.0","uvicorn[standard]==0.18.2","requests","deta==1.1.0"],"envs":null,"public":true,"log_level":"debug","cron":"7 days"}
