@@ -3,18 +3,25 @@ import requests
 import re
 from datetime import datetime
 from math import trunc
+from deta import App
 
-app = FastAPI()
+app = App(FastAPI())
 
 LA_CLASH_ID = 5143
 DAYTONA_500_ID = 5146
 # last reg. seas. id -> 5173
-CURR_RACE_ID = 5170 # current id -> 5169
+curr_race_id = 5170 # current id -> 5169
+
+@app.lib.cron()
+def cron_job(event):
+    curr_race_id += 1
+    return curr_race_id
+
 
 MANU_POINTS_URL = "https://cf.nascar.com/cacher/2022/1/final/1-manufacturer-points.json" # url to pull manufacturer points
 OWNERS_POINTS_URL = "https://cf.nascar.com/cacher/2022/1/final/1-owners-points.json" # url to pull owners points
 DRIVERS_POINTS_URL = "https://cf.nascar.com/cacher/2022/1/final/1-drivers-points.json" # url to pull drivers and driver points
-RACE_RESULTS_URL = f"https://cf.nascar.com/cacher/2022/1/{CURR_RACE_ID}/weekend-feed.json" # url to pull race results
+RACE_RESULTS_URL = f"https://cf.nascar.com/cacher/2022/1/{curr_race_id}/weekend-feed.json" # url to pull race results
 ADVANCED_DRIVER_STATS_URL = f"https://cf.nascar.com/cacher/2022/1/deep-driver-stats.json" # url to pull advanced driver stats
 LIVE_FEED_URL = "https://cf.nascar.com/cacher/live/live-feed.json" # url to pull live feed data
 
@@ -25,9 +32,11 @@ async def help():
     Help page. Provides all routes and associated functionality.
     """
     return {
-        "race_ids": [race_id for race_id in range(5143, 5171)],
+        "race_ids": [race_id for race_id in range(LA_CLASH_ID, curr_race_id + 1)],
         "/get-drivers": "Get all drivers",
         "/get-drivers-names": "Get all drivers names, returns list of driver names",
+        "/get-car-num-by-name/{driver_name}": "Get car number by driver name, ex: [Denny Hamlin]",
+        "/get-driver-by-number/{car_num}": "Get driver name by car number, ex: [43]",
         "/get-manufacturer-data": "Get all manufacturer",
         "/get-manufacturer-by-name/{manu_name}": "Get manufacturer by name, ex: [Chevrolet]]",
         "/get-manufacturer-by-pos/{pos}": "Get manufacturer by position, ex: [1]",
@@ -72,12 +81,15 @@ def get_drivers_names() -> list:
 def get_car_num_by_name(driver_name: str):
 
     drivers = get_drivers()
+    driver_names = get_drivers_names()
+
+    if driver_name not in driver_names:
+        return "Invalid driver name"
 
     for driver in drivers:
         name = driver["driver_name"]
-        if name == driver_name:
+        if name.lower() == driver_name.lower():
             return int(driver["car_no"])
-
 
 @app.get("/get-driver-by-number/{car_num}")
 def get_driver_by_number(car_num: int):
@@ -148,7 +160,7 @@ def get_race(race_id: int):
     """
 
     if race_id < LA_CLASH_ID:
-        return "Invalid race id."
+        return "Invalid race id. Race IDs start at 5143. For further information and assistance, please see the /help page."
     
     race_url = f"https://cf.nascar.com/cacher/2022/1/{race_id}/weekend-feed.json"
     
@@ -175,7 +187,7 @@ async def get_race_id_by_race_name(race_name: str):
     """
     possible_races = []
 
-    for race_id in range(LA_CLASH_ID, CURR_RACE_ID + 1):
+    for race_id in range(LA_CLASH_ID, curr_race_id + 1):
         race_data = get_race(race_id)
         retrieved_name = race_data["race_name"].lower()
         if race_name.lower() == retrieved_name:
@@ -193,7 +205,7 @@ async def get_race_id_by_track_name(track_name: str):
 
     all_races = []
 
-    for race_id in range(LA_CLASH_ID, CURR_RACE_ID + 1):
+    for race_id in range(LA_CLASH_ID, curr_race_id + 1):
         race_data = get_race(race_id)
         retrieved_name = race_data["track_name"].lower()
         if track_name.lower() == retrieved_name:
@@ -241,6 +253,17 @@ async def get_driver_standing_position(driver_name: str):
 
     ds_data = ds_json.json()
 
+    driver_names = get_drivers_names()
+
+    for driver in driver_names:
+        if driver_name.lower() == driver.lower():
+            break
+        elif driver_name.lower() in driver.lower():
+            return f"Did you mean {driver}?"
+
+    if driver_name not in driver_names:
+        return "Driver name invalid."
+
     for driver in ds_data:
         if driver["driver_name"] == driver_name:
             return {"regular_season": driver["position"], "playoff": driver["playoff_rank"]}
@@ -283,7 +306,7 @@ async def get_driver_avg_start(driver_name: str):
     if driver_name not in driver_names:
         return "Driver name invalid."
 
-    for race_id in range(DAYTONA_500_ID, CURR_RACE_ID + 1):
+    for race_id in range(DAYTONA_500_ID, curr_race_id + 1):
 
         if race_id in denied_races:
             continue
