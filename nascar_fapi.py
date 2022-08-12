@@ -25,7 +25,7 @@ async def help():
     Help page. Provides all routes and associated functionality.
     """
     return {
-        "race_ids": [race_id for race_id in range(5143, 5180)],
+        "race_ids": [race_id for race_id in range(5143, 5171)],
         "/get-drivers": "Get all drivers",
         "/get-drivers-names": "Get all drivers names, returns list of driver names",
         "/get-manufacturer-data": "Get all manufacturer",
@@ -67,6 +67,27 @@ def get_drivers_names() -> list:
         driver_names.append(driver_name)
     
     return driver_names
+
+@app.get("/get-car-num-by-name/{driver_name}")
+def get_car_num_by_name(driver_name: str):
+
+    drivers = get_drivers()
+
+    for driver in drivers:
+        name = driver["driver_name"]
+        if name == driver_name:
+            return int(driver["car_no"])
+
+
+@app.get("/get-driver-by-number/{car_num}")
+def get_driver_by_number(car_num: int):
+
+    drivers = get_drivers()
+
+    for driver in drivers:
+        driver_num = int(driver["car_no"])
+        if driver_num == car_num:
+            return driver["driver_name"]
 
 @app.get("/get-manufacturer-data")
 def get_manufacturer_data():
