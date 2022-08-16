@@ -1,12 +1,16 @@
 from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 import requests
 import re
 from datetime import datetime
 from math import trunc
-from deta import App
+# from deta import App
 
-app = App(FastAPI())
-# app = FastAPI()
+# app = App(FastAPI())
+app = FastAPI()
+
+templates = Jinja2Templates(directory="templates")
 
 LA_CLASH_ID = 5143
 DAYTONA_500_ID = 5146
@@ -14,10 +18,10 @@ DAYTONA_500_ID = 5146
 curr_race_id = 5171
 
 
-@app.lib.cron()
-def cron_job(event):
-    curr_race_id += 1
-    return curr_race_id
+# @app.lib.cron()
+# def cron_job(event):
+#    curr_race_id += 1
+#    return curr_race_id
 
 
 MANU_POINTS_URL = "https://cf.nascar.com/cacher/2022/1/final/1-manufacturer-points.json" # url to pull manufacturer points
@@ -27,37 +31,45 @@ RACE_RESULTS_URL = f"https://cf.nascar.com/cacher/2022/1/{curr_race_id}/weekend-
 ADVANCED_DRIVER_STATS_URL = f"https://cf.nascar.com/cacher/2022/1/deep-driver-stats.json" # url to pull advanced driver stats
 LIVE_FEED_URL = "https://cf.nascar.com/cacher/live/live-feed.json" # url to pull live feed data
 
-@app.get("/")
-@app.get("/help")
-def help():
+@app.get("/", response_class=HTMLResponse)
+@app.get("/help", response_class=HTMLResponse)
+def help(request: Request):
     """
     Help page. Provides all routes and associated functionality.
     """
-    routes_json = [
-        {
-            "race_ids": [race_id for race_id in range(LA_CLASH_ID, curr_race_id + 1)]
-        },
-        {
-            "/get-drivers": "Get all drivers",
-            "/get-drivers-names": "Get all drivers names, returns list of driver names",
-            "/get-car-num-by-name/{driver_name}": "Get car number by driver name, ex: [Denny Hamlin]",
-            "/get-driver-by-number/{car_num}": "Get driver name by car number, ex: [43]",
-            "/get-manufacturer-data": "Get all manufacturer",
-            "/get-manufacturer-by-name/{manu_name}": "Get manufacturer by name, ex: [Chevrolet]]",
-            "/get-manufacturer-by-pos/{pos}": "Get manufacturer by position, ex: [1]",
-            "/get-race/{race_id}": "Get race by id, ex: [5155]",
-            "/get-race-id-by-race-name/{race_name}": "Get race id with race_name, ex: [Daytona 500]",
-            "/get-race-id-by-track-name/{track_name}": "Get race id with track name, ex: [Atlanta Motor Speedway]",
-            "/get-race-results/{race_id}": "Get race results with race id, ex: [5155]",
-            "/get/{driver_name}/standing-position": "Get driver standing position with name, ex: [Chase Elliott]",
-            "/{driver_name}/{race_id}/result": "Get driver result with name and race id, ex: [Kyle Busch, 5155]",
-            "/get-{driver_name}/avg-start": "Get driver average start with name, ex: [William Byron]",
-            "/get-{driver_name}/avg-finish": "Get driver average finish with name, ex: [Ross Chastain]",
-            "/get-live-results": "Get live data on the current race."
-    }
-    ]
 
-    return routes_json
+    help_json = [
+        {
+        "key": "race_ids", "value": [race_id for race_id in range(LA_CLASH_ID, curr_race_id + 1)]
+        }
+        ]
+
+    routes_json = [
+        {"route": "/get-drivers", "description": "Get all drivers"},
+        {"route": "/get-drivers-names", "description": "Get all drivers names, returns list of driver names"},
+        {"route": "/get-car-num-by-name/{driver_name}", "description": "Get car number by driver name, ex: [Denny Hamlin]"},
+        {"route": "/get-driver-by-number/{car_num}", "description": "Get driver name by car number, ex: [43]"},
+        {"route": "/get-manufacturer-data", "description": "Get all manufacturer"},
+        {"route": "/get-manufacturer-by-name/{manu_name}", "description": "Get manufacturer by name, ex: [Chevrolet]]"},
+        {"route": "/get-manufacturer-by-pos/{pos}", "description": "Get manufacturer by position, ex: [1]"},
+        {"route": "/get-race/{race_id}", "description": "Get race by id, ex: [5155]"},
+        {"route": "/get-race-id-by-race-name/{race_name}", "description": "Get race id with race_name, ex: [Daytona 500]"},
+        {"route": "/get-race-id-by-track-name/{track_name}", "description": "Get race id with track name, ex: [Atlanta Motor Speedway]"},
+        {"route": "/get-race-results/{race_id}", "description": "Get race results with race id, ex: [5155]"},
+        {"route": "/get/{driver_name}/standing-position", "description": "Get driver standing position with name, ex: [Chase Elliott]"},
+        {"route": "/{driver_name}/{race_id}/result", "description": "Get driver result with name and race id, ex: [Kyle Busch, 5155]"},
+        {"route": "/get-{driver_name}/avg-start", "description": "Get driver average start with name, ex: [William Byron]"},
+        {"route": "/get-{driver_name}/avg-finish", "description": "Get driver average finish with name, ex: [Ross Chastain]"},
+        {"route": "/get-live-results", "description": "Get live data on the current race."}
+        ]
+    
+    context = {
+        "request": request,
+        "help": help_json,
+        "routes": routes_json
+        }
+
+    return templates.TemplateResponse("help.html", context)
 
 @app.get("/get-drivers")
 def get_drivers():
@@ -249,6 +261,10 @@ def get_race_results(race_id: int):
         "race_name": race_data["weekend_race"][0]["race_name"],
         "track_name": race_data["weekend_race"][0]["track_name"]
         }
+    
+    sorted_values = sorted(race_results_dict["results"].items(), key=lambda x: x[1])
+
+    race_results_dict["results"] = {driver: finish_pos for driver, finish_pos in sorted_values}
 
     return race_results_dict
 
