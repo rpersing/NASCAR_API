@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 import requests
 import re
 from datetime import datetime
@@ -6,11 +6,13 @@ from math import trunc
 from deta import App
 
 app = App(FastAPI())
+# app = FastAPI()
 
 LA_CLASH_ID = 5143
 DAYTONA_500_ID = 5146
 # last reg. seas. id -> 5173
-curr_race_id = 5170 # current id -> 5169
+curr_race_id = 5171
+
 
 @app.lib.cron()
 def cron_job(event):
@@ -27,29 +29,35 @@ LIVE_FEED_URL = "https://cf.nascar.com/cacher/live/live-feed.json" # url to pull
 
 @app.get("/")
 @app.get("/help")
-async def help():
+def help():
     """
     Help page. Provides all routes and associated functionality.
     """
-    return {
-        "race_ids": [race_id for race_id in range(LA_CLASH_ID, curr_race_id + 1)],
-        "/get-drivers": "Get all drivers",
-        "/get-drivers-names": "Get all drivers names, returns list of driver names",
-        "/get-car-num-by-name/{driver_name}": "Get car number by driver name, ex: [Denny Hamlin]",
-        "/get-driver-by-number/{car_num}": "Get driver name by car number, ex: [43]",
-        "/get-manufacturer-data": "Get all manufacturer",
-        "/get-manufacturer-by-name/{manu_name}": "Get manufacturer by name, ex: [Chevrolet]]",
-        "/get-manufacturer-by-pos/{pos}": "Get manufacturer by position, ex: [1]",
-        "/get-race/{race_id}": "Get race by id, ex: [5155]",
-        "/get-race-id-by-race-name/{race_name}": "Get race id with race_name, ex: [Daytona 500]",
-        "/get-race-id-by-track-name/{track_name}": "Get race id with track name, ex: [Atlanta Motor Speedway]",
-        "/get-race-results/{race_id}": "Get race results with race id, ex: [5155]",
-        "/get-{driver_name}-standing-position": "Get driver standing position with name, ex: [Chase Elliott]",
-        "/{driver_name}/{race_id}/result": "Get driver result with name and race id, ex: [Kyle Busch, 5155]",
-        "/get-{driver_name}-avg-start": "Get driver average start with name, ex: [William Byron]",
-        "/get-{driver_name}-avg-finish": "Get driver average finish with name, ex: [Ross Chastain]",
-        "/get-live-results": "Get live data on the current race."
+    routes_json = [
+        {
+            "race_ids": [race_id for race_id in range(LA_CLASH_ID, curr_race_id + 1)]
+        },
+        {
+            "/get-drivers": "Get all drivers",
+            "/get-drivers-names": "Get all drivers names, returns list of driver names",
+            "/get-car-num-by-name/{driver_name}": "Get car number by driver name, ex: [Denny Hamlin]",
+            "/get-driver-by-number/{car_num}": "Get driver name by car number, ex: [43]",
+            "/get-manufacturer-data": "Get all manufacturer",
+            "/get-manufacturer-by-name/{manu_name}": "Get manufacturer by name, ex: [Chevrolet]]",
+            "/get-manufacturer-by-pos/{pos}": "Get manufacturer by position, ex: [1]",
+            "/get-race/{race_id}": "Get race by id, ex: [5155]",
+            "/get-race-id-by-race-name/{race_name}": "Get race id with race_name, ex: [Daytona 500]",
+            "/get-race-id-by-track-name/{track_name}": "Get race id with track name, ex: [Atlanta Motor Speedway]",
+            "/get-race-results/{race_id}": "Get race results with race id, ex: [5155]",
+            "/get/{driver_name}/standing-position": "Get driver standing position with name, ex: [Chase Elliott]",
+            "/{driver_name}/{race_id}/result": "Get driver result with name and race id, ex: [Kyle Busch, 5155]",
+            "/get-{driver_name}/avg-start": "Get driver average start with name, ex: [William Byron]",
+            "/get-{driver_name}/avg-finish": "Get driver average finish with name, ex: [Ross Chastain]",
+            "/get-live-results": "Get live data on the current race."
     }
+    ]
+
+    return routes_json
 
 @app.get("/get-drivers")
 def get_drivers():
@@ -58,6 +66,7 @@ def get_drivers():
     """
     driver_json = requests.request("GET", DRIVERS_POINTS_URL)
     driver_data = driver_json.json()
+    driver_data.sort(key=lambda x: x["position"])
 
     return driver_data
 
@@ -243,7 +252,7 @@ def get_race_results(race_id: int):
 
     return race_results_dict
 
-@app.get("/get-{driver_name}-standing-position")
+@app.get("/get/{driver_name}/standing-position")
 async def get_driver_standing_position(driver_name: str):
     """
     Get driver's position in the standings by name.
@@ -286,7 +295,7 @@ async def get_driver_race_result(driver_name: str, race_id: int):
 
     return {"result": driver_result}
 
-@app.get("/get-{driver_name}-avg-start")
+@app.get("/get-{driver_name}/avg-start")
 async def get_driver_avg_start(driver_name: str):
     """
     Get average start for given driver.
@@ -328,7 +337,7 @@ async def get_driver_avg_start(driver_name: str):
     avg_start = trunc(avg_start * 10) / 10
     return float(avg_start)
 
-@app.get("/get-{driver_name}-avg-finish")
+@app.get("/get-{driver_name}/avg-finish")
 async def get_driver_avg_finish(driver_name: str):
     """
     Get average finish for given driver.
